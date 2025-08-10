@@ -1,75 +1,79 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Check, Loader2 } from 'lucide-react'
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Check, Loader2 } from "lucide-react";
 
 interface PricingCardProps {
-  name: string
-  price: string
-  period: string
-  attempts: string
-  features: string[]
-  popular: boolean
-  plan?: string
-  user?: any
+  name: string;
+  price: string;
+  period: string;
+  attempts: string;
+  features: string[];
+  popular: boolean;
+  plan?: string;
+  user?: any;
 }
 
-export default function PricingCard({ 
-  name, 
-  price, 
-  period, 
-  attempts, 
-  features, 
-  popular, 
+export default function PricingCard({
+  name,
+  price,
+  period,
+  attempts,
+  features,
+  popular,
   plan,
-  user 
+  user,
 }: PricingCardProps) {
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(false);
 
   const handleSubscribe = async () => {
-    if (!plan || !user) return
+    if (!plan) return;
 
-    setLoading(true)
+    setLoading(true);
 
     try {
-      const response = await fetch('/api/create-checkout-session', {
-        method: 'POST',
+      const response = await fetch("/api/create-checkout-session", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           plan: plan,
-          userId: user.id,
-          userEmail: user.email || `${user.username}@example.com`,
+          userEmail: user?.email || `${user?.username || "user"}@example.com`,
         }),
-      })
+      });
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to create checkout session')
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to create checkout session");
       }
 
-      const { url } = await response.json()
+      const { url } = await response.json();
 
       // Open in new tab to avoid iframe restrictions
-      window.open(url, '_blank')
-
+      window.open(url, "_blank");
     } catch (error) {
-      console.error('Subscription error:', error)
-      alert('Something went wrong. Please try again.')
+      console.error("Subscription error:", error);
+      alert("Something went wrong. Please try again.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const isFree = name === 'Free'
-  const isCurrentPlan = user?.plan === name.toLowerCase()
+  const isFree = name === "Free";
+  const isCurrentPlan = user?.plan === name.toLowerCase();
 
   return (
-    <Card className={`relative ${popular ? 'border-blue-500 border-2' : ''}`}>
+    <Card className={`relative ${popular ? "border-blue-500 border-2" : ""}`}>
       {popular && (
         <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-blue-500">
           Most Popular
@@ -94,7 +98,7 @@ export default function PricingCard({
             </li>
           ))}
         </ul>
-        
+
         {isCurrentPlan ? (
           <Button className="w-full" disabled>
             Current Plan
@@ -104,8 +108,8 @@ export default function PricingCard({
             Free Plan
           </Button>
         ) : (
-          <Button 
-            className="w-full" 
+          <Button
+            className="w-full"
             variant={popular ? "default" : "outline"}
             onClick={handleSubscribe}
             disabled={loading}
@@ -116,11 +120,11 @@ export default function PricingCard({
                 Processing...
               </>
             ) : (
-              'Subscribe Now'
+              "Subscribe Now"
             )}
           </Button>
         )}
       </CardContent>
     </Card>
-  )
+  );
 }

@@ -6,6 +6,16 @@
   .text-balance {
     text-wrap: balance;
   }
+  
+  .no-hover-effect:hover {
+    background-color: inherit !important;
+    color: inherit !important;
+    border-color: inherit !important;
+    transform: none !important;
+    box-shadow: none !important;
+    filter: none !important;
+    opacity: 1 !important;
+  }
 }
 
 @layer base {

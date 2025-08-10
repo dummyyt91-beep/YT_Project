@@ -1,72 +1,125 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Play, Shield } from 'lucide-react'
-import Link from "next/link"
-import { useRouter } from 'next/navigation'
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Play, Shield } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [adminUsername, setAdminUsername] = useState('')
-  const [adminPassword, setAdminPassword] = useState('')
-  const [error, setError] = useState('')
-  const [adminError, setAdminError] = useState('')
-  const router = useRouter()
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [adminUsername, setAdminUsername] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isAdminLoading, setIsAdminLoading] = useState(false);
+  const router = useRouter();
+  const { toast } = useToast();
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
 
-    // Get users from localStorage
-    const users = JSON.parse(localStorage.getItem('users') || '[]')
-    
-    // Find user
-    const user = users.find((u: any) => u.username === username && u.password === password)
-    
-    if (user) {
-      // Ensure user has a plan set
-      if (!user.plan) {
-        user.plan = 'free'
-        // Update the user in the users array
-        const userIndex = users.findIndex((u: any) => u.username === username)
-        if (userIndex !== -1) {
-          users[userIndex] = user
-          localStorage.setItem('users', JSON.stringify(users))
-        }
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Login failed");
       }
-      
-      // Set current user
-      localStorage.setItem('currentUser', JSON.stringify(user))
-      router.push('/dashboard')
-    } else {
-      setError('Invalid username or password')
+
+      toast({
+        title: "Success!",
+        description: "Welcome back! Redirecting to dashboard...",
+        variant: "default",
+      });
+
+      // Update authentication state in parent page
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: 'AUTH_SUCCESS' }, '*');
+      }
+
+      setTimeout(() => router.push("/dashboard"), 1500);
+    } catch (err: any) {
+      // Convert technical errors to user-friendly messages
+      let userMessage = "Something went wrong. Please try again.";
+
+      if (
+        err.message.includes("ECONNREFUSED") ||
+        err.message.includes("Unable to connect to database")
+      ) {
+        userMessage =
+          "We're experiencing technical difficulties. Please try again in a few minutes.";
+      } else if (err.message.includes("Invalid credentials")) {
+        userMessage =
+          "Invalid email or password. Please check your credentials and try again.";
+      } else if (err.message.includes("Login failed")) {
+        userMessage =
+          "Login failed. Please check your credentials and try again.";
+      }
+
+      toast({
+        title: "Login Failed",
+        description: userMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleAdminLogin = (e: React.FormEvent) => {
-    e.preventDefault()
-    setAdminError('')
+    e.preventDefault();
+    setIsAdminLoading(true);
 
     // Check admin credentials
-    if (adminUsername === 'Shrushti.vachhani' && adminPassword === 'Shrushti@000') {
+    if (
+      adminUsername === "Shrushti.vachhani" &&
+      adminPassword === "Shrushti@000"
+    ) {
       // Set admin session
-      localStorage.setItem('adminUser', JSON.stringify({ 
-        username: 'Shrushti.vachhani', 
-        role: 'admin',
-        loginTime: new Date().toISOString()
-      }))
-      router.push('/admin')
+      localStorage.setItem(
+        "adminUser",
+        JSON.stringify({
+          username: "Shrushti.vachhani",
+          role: "admin",
+          loginTime: new Date().toISOString(),
+        })
+      );
+
+      toast({
+        title: "Admin Access Granted",
+        description: "Welcome, Admin! Redirecting to admin panel...",
+        variant: "default",
+      });
+
+      setTimeout(() => router.push("/admin"), 1500);
     } else {
-      setAdminError('Invalid admin credentials')
+      toast({
+        title: "Access Denied",
+        description: "Invalid admin credentials. Please try again.",
+        variant: "destructive",
+      });
     }
-  }
+
+    setIsAdminLoading(false);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
@@ -75,7 +128,9 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center">
             <Play className="w-8 h-8 text-blue-600 mr-2" />
-            <span className="text-2xl font-bold text-gray-900">YouTube Transcript Analyzer</span>
+            <span className="text-2xl font-bold text-gray-900">
+              YouTube Transcript Analyzer
+            </span>
           </Link>
         </div>
 
@@ -95,62 +150,71 @@ export default function LoginPage() {
                   Admin
                 </TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="user">
                 <form onSubmit={handleLogin} className="space-y-4">
-                  {error && (
-                    <Alert variant="destructive">
-                      <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                  )}
-                  
+                  {/* Removed Alert component as per edit hint */}
+
                   <div className="space-y-2">
-                    <Label htmlFor="username">Username</Label>
+                    <Label htmlFor="email">Email</Label>
                     <Input
-                      id="username"
-                      type="text"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      placeholder="Enter your username"
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
                       required
+                      disabled={isLoading}
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter your password"
-                      required
-                    />
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Enter your password"
+                        required
+                        disabled={isLoading}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((s) => !s)}
+                        className="absolute inset-y-0 right-0 px-3 text-sm text-blue-600"
+                        aria-label={
+                          showPassword ? "Hide password" : "Show password"
+                        }
+                      >
+                        {showPassword ? "Hide" : "Show"}
+                      </button>
+                    </div>
                   </div>
-                  
-                  <Button type="submit" className="w-full">
-                    Sign In
+
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? "Signing In..." : "Sign In"}
                   </Button>
                 </form>
-                
+
                 <div className="mt-6 text-center">
                   <p className="text-sm text-gray-600">
-                    Don't have an account?{' '}
-                    <Link href="/register" className="text-blue-600 hover:underline">
+                    Don't have an account?{" "}
+                    <Link
+                      href="/register"
+                      className="text-blue-600 hover:underline"
+                    >
                       Sign up
                     </Link>
                   </p>
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="admin">
                 <form onSubmit={handleAdminLogin} className="space-y-4">
-                  {adminError && (
-                    <Alert variant="destructive">
-                      <AlertDescription>{adminError}</AlertDescription>
-                    </Alert>
-                  )}
-                  
+                  {/* Removed Alert component as per edit hint */}
+
                   <div className="space-y-2">
                     <Label htmlFor="adminUsername">Admin Username</Label>
                     <Input
@@ -160,9 +224,10 @@ export default function LoginPage() {
                       onChange={(e) => setAdminUsername(e.target.value)}
                       placeholder="Enter admin username"
                       required
+                      disabled={isAdminLoading}
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="adminPassword">Admin Password</Label>
                     <Input
@@ -172,12 +237,16 @@ export default function LoginPage() {
                       onChange={(e) => setAdminPassword(e.target.value)}
                       placeholder="Enter admin password"
                       required
+                      disabled={isAdminLoading}
                     />
                   </div>
-                  
-                  <Button type="submit" className="w-full">
-                    <Shield className="w-4 h-4 mr-2" />
-                    Admin Login
+
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={isAdminLoading}
+                  >
+                    {isAdminLoading ? "Logging In..." : "Admin Login"}
                   </Button>
                 </form>
               </TabsContent>
@@ -186,5 +255,5 @@ export default function LoginPage() {
         </Card>
       </div>
     </div>
-  )
+  );
 }

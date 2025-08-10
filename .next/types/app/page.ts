@@ -1,4 +1,4 @@
-// File: D:\Shrushti test project\frontend\app\page.tsx
+// File: D:\YT_Project\app\page.tsx
 import * as entry from '../../../app/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

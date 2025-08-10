@@ -1,4 +1,4 @@
-// File: D:\Shrushti test project\frontend\app\api\transcript\route.ts
+// File: D:\YT_Project\app\api\transcript\route.ts
 import * as entry from '../../../../../app/api/transcript/route.js'
 import type { NextRequest } from 'next/server.js'
 

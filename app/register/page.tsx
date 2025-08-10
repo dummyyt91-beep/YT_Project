@@ -1,77 +1,108 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Play } from 'lucide-react'
-import Link from "next/link"
-import { useRouter } from 'next/navigation'
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Play } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
 
 export default function RegisterPage() {
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
-  const router = useRouter()
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+  const { toast } = useToast();
 
-  const handleRegister = (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setSuccess('')
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
 
     // Basic validation
-    if (password !== confirmPassword) {
-      setError('Passwords do not match')
-      return
+    if (!email || !email.includes("@")) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
     }
-
-    if (username.length < 3) {
-      setError('Username must be at least 3 characters long')
-      return
-    }
-
     if (password.length < 6) {
-      setError('Password must be at least 6 characters long')
-      return
+      toast({
+        title: "Password Too Short",
+        description: "Password must be at least 6 characters long.",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
     }
 
-    // Get existing users
-    const users = JSON.parse(localStorage.getItem('users') || '[]')
-    
-    // Check if username already exists
-    if (users.find((u: any) => u.username === username)) {
-      setError('Username already exists')
-      return
-    }
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, email, password }),
+      });
+      const data = await res.json();
 
-    // Create new user with 5 free attempts and free plan
-    const newUser = {
-      id: Date.now(),
-      username,
-      password,
-      attemptsRemaining: 5,
-      plan: 'free', // Explicitly set to free plan
-      createdAt: new Date().toISOString(),
-      lastUsedDate: new Date().toDateString()
-    }
+      if (!res.ok) {
+        throw new Error(data.error || "Registration failed");
+      }
 
-    // Add to users array
-    users.push(newUser)
-    localStorage.setItem('users', JSON.stringify(users))
-    
-    // Set as current user
-    localStorage.setItem('currentUser', JSON.stringify(newUser))
-    
-    setSuccess('Account created successfully! Redirecting...')
-    
-    setTimeout(() => {
-      router.push('/dashboard')
-    }, 1500)
-  }
+      toast({
+        title: "Account Created!",
+        description:
+          "Your account has been created successfully! Redirecting to dashboard...",
+        variant: "default",
+      });
+
+      // Update authentication state in parent page
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: 'AUTH_SUCCESS' }, '*');
+      }
+
+      setTimeout(() => router.push("/dashboard"), 1500);
+    } catch (err: any) {
+      // Convert technical errors to user-friendly messages
+      let userMessage = "Something went wrong. Please try again.";
+
+      if (
+        err.message.includes("ECONNREFUSED") ||
+        err.message.includes("Unable to connect to database")
+      ) {
+        userMessage =
+          "We're experiencing technical difficulties. Please try again in a few minutes.";
+      } else if (err.message.includes("Email already registered")) {
+        userMessage =
+          "An account with this email already exists. Please try signing in instead.";
+      } else if (err.message.includes("Username already exists")) {
+        userMessage =
+          "This username is already taken. Please choose a different one.";
+      } else if (err.message.includes("Registration failed")) {
+        userMessage = "Registration failed. Please try again.";
+      }
+
+      toast({
+        title: "Registration Failed",
+        description: userMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
@@ -80,7 +111,9 @@ export default function RegisterPage() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center">
             <Play className="w-8 h-8 text-blue-600 mr-2" />
-            <span className="text-2xl font-bold text-gray-900">YouTube Transcript Analyzer</span>
+            <span className="text-2xl font-bold text-gray-900">
+              YouTube Transcript Analyzer
+            </span>
           </Link>
         </div>
 
@@ -93,62 +126,50 @@ export default function RegisterPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleRegister} className="space-y-4">
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-              
-              {success && (
-                <Alert>
-                  <AlertDescription>{success}</AlertDescription>
-                </Alert>
-              )}
-              
               <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
-                  id="username"
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Choose a username"
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
                   required
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Create a password"
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Create a password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((s) => !s)}
+                    className="absolute inset-y-0 right-0 px-3 text-sm text-blue-600"
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    {showPassword ? "Hide" : "Show"}
+                  </button>
+                </div>
               </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm your password"
-                  required
-                />
-              </div>
-              
-              <Button type="submit" className="w-full">
-                Create Account
+
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? "Creating Account..." : "Create Account"}
               </Button>
             </form>
-            
+
             <div className="mt-6 text-center">
               <p className="text-sm text-gray-600">
-                Already have an account?{' '}
+                Already have an account?{" "}
                 <Link href="/login" className="text-blue-600 hover:underline">
                   Sign in
                 </Link>
@@ -158,5 +179,5 @@ export default function RegisterPage() {
         </Card>
       </div>
     </div>
-  )
+  );
 }
