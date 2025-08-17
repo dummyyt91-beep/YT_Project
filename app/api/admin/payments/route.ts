@@ -5,7 +5,7 @@ import { User } from "@/models/User";
 import { Payment } from "@/models/Payment";
 
 function isAdmin(user: any): boolean {
-  return user?.role === "admin" || user?.username === "Shrushti.vachhani";
+  return user?.role === "admin" || user?.username === "admin@gmail.com";
 }
 
 export async function GET(request: NextRequest) {
@@ -15,8 +15,14 @@ export async function GET(request: NextRequest) {
     if (!payload)
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    await connectDB();
-    const requester = await User.findById(payload.userId);
+    let requester;
+    if (payload.userId === "admin-id" && payload.username === "admin@gmail.com") {
+      requester = { role: "admin", username: "admin@gmail.com" }; // Mock admin user for direct token authentication
+    } else {
+      await connectDB();
+      requester = await User.findById(payload.userId);
+    }
+
     if (!isAdmin(requester))
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 

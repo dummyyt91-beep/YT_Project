@@ -84,24 +84,24 @@ export default function LoginPage() {
     }
   };
 
-  const handleAdminLogin = (e: React.FormEvent) => {
+  const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsAdminLoading(true);
 
-    // Check admin credentials
-    if (
-      adminUsername === "Shrushti.vachhani" &&
-      adminPassword === "Shrushti@000"
-    ) {
-      // Set admin session
-      localStorage.setItem(
-        "adminUser",
-        JSON.stringify({
-          username: "Shrushti.vachhani",
-          role: "admin",
-          loginTime: new Date().toISOString(),
-        })
-      );
+    try {
+      const res = await fetch("/api/auth/admin-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: adminUsername, password: adminPassword }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Admin login failed");
+      }
+
+      // No need to set localStorage.setItem("adminUser") here, as the API now handles token and cookie.
+      // The admin dashboard will rely on the JWT token for authentication.
 
       toast({
         title: "Admin Access Granted",
@@ -110,15 +110,23 @@ export default function LoginPage() {
       });
 
       setTimeout(() => router.push("/admin"), 1500);
-    } else {
+    } catch (err: any) {
+      let userMessage = "Something went wrong. Please try again.";
+
+      if (err.message.includes("Invalid admin credentials")) {
+        userMessage = "Invalid admin credentials. Please try again.";
+      } else if (err.message.includes("Admin login failed")) {
+        userMessage = "Admin login failed. Please try again.";
+      }
+
       toast({
         title: "Access Denied",
-        description: "Invalid admin credentials. Please try again.",
+        description: userMessage,
         variant: "destructive",
       });
+    } finally {
+      setIsAdminLoading(false);
     }
-
-    setIsAdminLoading(false);
   };
 
   return (
