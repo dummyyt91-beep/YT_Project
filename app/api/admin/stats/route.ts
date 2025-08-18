@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { connectDB } from "@/lib/mongoose";
 import { getTokenFromRequest, verifyAuthToken } from "@/lib/auth";
 import { User } from "@/models/User";
@@ -18,7 +20,10 @@ export async function GET(request: Request) {
     }
 
     let requester;
-    if (payload.userId === "admin-id" && payload.username === "admin@gmail.com") {
+    if (
+      payload.userId === "admin-id" &&
+      payload.username === "admin@gmail.com"
+    ) {
       requester = { role: "admin", username: "admin@gmail.com" }; // Mock admin user for direct token authentication
     } else {
       await connectDB();
@@ -43,20 +48,29 @@ export async function GET(request: Request) {
     // Monthly Revenue
     const monthlyRevenue = await Payment.aggregate([
       { $match: { status: "completed" } },
-      { $group: {
-          _id: { year: { $year: "$createdAt" }, month: { $month: "$createdAt" } },
+      {
+        $group: {
+          _id: {
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" },
+          },
           totalAmount: { $sum: "$amount" },
-        }
+        },
       },
       { $sort: { "_id.year": 1, "_id.month": 1 } },
     ]);
 
     // Transcripts created over time (e.g., daily or monthly)
     const transcriptsOverTime = await Collection.aggregate([
-      { $group: {
-          _id: { year: { $year: "$createdAt" }, month: { $month: "$createdAt" }, day: { $dayOfMonth: "$createdAt" } },
+      {
+        $group: {
+          _id: {
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" },
+            day: { $dayOfMonth: "$createdAt" },
+          },
           count: { $sum: 1 },
-        }
+        },
       },
       { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } },
     ]);

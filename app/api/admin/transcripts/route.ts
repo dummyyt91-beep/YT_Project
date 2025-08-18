@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { connectDB } from "@/lib/mongoose";
 import { getTokenFromRequest, verifyAuthToken } from "@/lib/auth";
 import { Collection } from "@/models/Collection";
@@ -17,7 +19,10 @@ export async function GET(request: Request) {
     }
 
     let requester;
-    if (payload.userId === "admin-id" && payload.username === "admin@gmail.com") {
+    if (
+      payload.userId === "admin-id" &&
+      payload.username === "admin@gmail.com"
+    ) {
       requester = { role: "admin", username: "admin@gmail.com" }; // Mock admin user for direct token authentication
     } else {
       await connectDB();
