@@ -55,6 +55,13 @@ export default function DashboardPage() {
   const [showCollections, setShowCollections] = useState(false);
   const [selectedCollection, setSelectedCollection] = useState<any>(null);
 
+  const formatTime = (seconds?: number) => {
+    if (seconds === undefined) return "";
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
   useEffect(() => {
     // Fetch user data from API
     const fetchUserData = async () => {
@@ -791,9 +798,10 @@ export default function DashboardPage() {
                       <Youtube className="w-5 h-5 mr-2 text-blue-600" />
                       Transcript
                     </CardTitle>
-                    <CardDescription>
+                    {/* Enhanced message */}
+                    <div className="text-green-600 flex items-center text-sm mt-1">
                       Video transcript extracted successfully
-                    </CardDescription>
+                    </div>
                   </div>
                   <Button onClick={startChat} className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-md">
                     <MessageSquare className="w-4 h-4 mr-2" />
@@ -801,17 +809,16 @@ export default function DashboardPage() {
                   </Button>
                 </CardHeader>
                 <CardContent>
-                  <ScrollArea className="h-96 w-full border rounded-md p-4 bg-gray-50">
+                  <ScrollArea className="h-[600px] w-full border rounded-md p-4 bg-gray-50">
                     <div className="space-y-2">
                       {transcript.map((item, index) => (
-                        <div key={index} className="text-sm hover:bg-blue-50 p-1 rounded-md transition-colors duration-200">
-                          {item.start && (
-                            <span className="text-blue-600 font-mono text-xs mr-2 bg-blue-50 px-1 rounded">
-                              [{Math.floor(item.start / 60)}:
-                              {(item.start % 60).toFixed(0).padStart(2, "0")}]
-                            </span>
-                          )}
-                          <span>{item.text}</span>
+                        <div key={index} className="flex items-start group">
+                          <span className="font-mono text-xs text-gray-500 mr-3 mt-1">
+                      {formatTime(item.start)}
+                    </span>
+                    <p className="text-sm leading-relaxed text-gray-800 flex-1 py-1">
+                      {item.text}
+                    </p>
                         </div>
                       ))}
                     </div>

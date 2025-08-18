@@ -92,8 +92,11 @@ export default function AdminDashboard() {
         const monthlyRevenueLabels = (statsData.monthlyRevenue || []).map(
           (item: any) => `${item._id.month}/${item._id.year}`
         );
-        const monthlyRevenueAmounts = (statsData.monthlyRevenue || []).map(
-          (item: any) => item.totalAmount
+        const monthlyRevenueDataForScatter = (statsData.monthlyRevenue || []).map(
+          (item: any) => ({
+            x: new Date(item._id.year, item._id.month - 1),
+            y: item.totalAmount / 100, // Convert from paise to rupees
+          })
         );
 
         const transcriptsDataForScatter = (statsData.transcriptsOverTime || []).map(
@@ -115,13 +118,12 @@ export default function AdminDashboard() {
             ],
           },
           monthlyRevenue: {
-            labels: monthlyRevenueLabels,
             datasets: [
               {
                 label: "Monthly Revenue",
-                data: monthlyRevenueAmounts,
-                borderColor: "#10B981",
-                tension: 0.1,
+                data: monthlyRevenueDataForScatter,
+                backgroundColor: "#10B981",
+                pointRadius: 5,
               },
             ],
           },
@@ -136,6 +138,7 @@ export default function AdminDashboard() {
             ],
           },
         });
+
         setUsers(usersData);
         setPayments(paymentsData);
 
@@ -175,8 +178,13 @@ export default function AdminDashboard() {
           monthlyRevenue,
           totalTranscripts,
         });
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        // Handle error appropriately, e.g., show an error message to the user
+      }
 
-        // Dynamically import Chart.js components
+      // Dynamically import Chart.js components
+      try {
         const ChartJs = await import("chart.js/auto");
         const ReactChartJs = await import("react-chartjs-2");
 
@@ -191,23 +199,18 @@ export default function AdminDashboard() {
           ChartJs.ArcElement,
           ChartJs.PointElement,
           ChartJs.LineElement,
-          // Added for Scatter chart
-          ChartJs.TimeScale,
-          ChartJs.PointElement
+          ChartJs.TimeScale // For time-based scales
         );
 
-        // Register the date adapter
-        ChartJs.Chart.register(ChartJs.TimeScale);
-
-        setBar(() => ReactChartJs.Bar);
-        setLine(() => ReactChartJs.Line);
-        setPie(() => ReactChartJs.Pie);
-        setScatter(() => ReactChartJs.Scatter);
+        setBar(ReactChartJs.Bar);
+        setLine(ReactChartJs.Line);
         setPie(ReactChartJs.Pie);
-      } catch {
-        // ignore
+        setScatter(ReactChartJs.Scatter);
+      } catch (error) {
+        console.error("Error loading chart components:", error);
       }
     };
+
     init();
   }, [router]);
 
@@ -233,7 +236,9 @@ export default function AdminDashboard() {
   };
 
   const formatCurrency = (amount: number) => {
-    return `₹${amount.toLocaleString()}`;
+    // Convert from paise to rupees (divide by 100) before displaying
+    const amountInRupees = amount / 100;
+    return `₹${amountInRupees.toLocaleString('en-IN')}`;
   };
 
   const formatDate = (dateString: string) => {
@@ -348,7 +353,7 @@ export default function AdminDashboard() {
                   <div className="flex justify-between text-sm">
                     <span>Pro:</span>
                     <span className="text-blue-600 font-medium">
-                      {stats.proUsers}
+ {stats.proUsers}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
@@ -447,7 +452,7 @@ export default function AdminDashboard() {
                           <TableCell className="font-medium text-green-600">
                             {formatCurrency(payment.amount)}
                           </TableCell>
-                          <TableCell>{formatDate(payment.date)}</TableCell>
+                          <TableCell>{formatDate(payment.createdAt || payment.date)}</TableCell>
                           <TableCell>
                             <Badge className="bg-green-500 text-white">
                               {payment.status}
@@ -471,7 +476,7 @@ export default function AdminDashboard() {
           </Tabs>
 
           {/* Chart Cards */}
-          {Bar && Line && Pie && (
+          {Bar && Scatter && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <Card className="lg:col-span-2">
                 <CardHeader>
@@ -502,16 +507,53 @@ export default function AdminDashboard() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Line
-                    data={chartData.monthlyRevenue}
-                    options={{
-                      responsive: true,
-                      plugins: {
-                        legend: { position: "top" },
-                        title: { display: true, text: "Monthly Revenue" },
-                      },
-                    }}
-                  />
+                  {Scatter && (
+
+                    <Scatter
+                      data={chartData.monthlyRevenue}
+                      options={{
+                        responsive: true,
+                        plugins: {
+                          legend: { position: "top" },
+                          title: { display: true, text: "Monthly Revenue" },
+                          tooltip: {
+                            callbacks: {
+                              label: function(context) {
+                                return `Revenue: ₹${context.parsed.y.toLocaleString('en-IN')}`;
+                              }
+                            }
+                          }
+                        },
+                        scales: {
+                          x: {
+                            type: 'time',
+                            time: {
+                              unit: 'month',
+                              tooltipFormat: 'MMM yyyy',
+                            },
+                            title: {
+                              display: true,
+                              text: 'Date',
+                            },
+                          },
+                          y: {
+                            beginAtZero: true,
+                            min: 0,
+                            max: 2000, // Assuming max revenue is around 2000 rupees for now
+                            title: {
+                              display: true,
+                              text: 'Revenue (₹)',
+                            },
+                            ticks: {
+                              callback: function(value) {
+                                return '₹' + value.toLocaleString('en-IN');
+                              }
+                            }
+                          },
+                        },
+                      }}
+                    />
+                  )}
                 </CardContent>
               </Card>
 

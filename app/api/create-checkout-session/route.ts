@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { getTokenFromRequest, verifyAuthToken } from "@/lib/auth";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: "2024-06-20",
 });
 
@@ -27,7 +27,9 @@ export async function POST(request: NextRequest) {
     if (plan === "pro") {
       priceData = {
         currency: "inr",
-        product: process.env.STRIPE_PRO_PRODUCT_ID,
+        product_data: {
+          name: "Pro Plan",
+        },
         unit_amount: 9900, // ₹99.00 in paise
         recurring: {
           interval: "month",
@@ -36,7 +38,9 @@ export async function POST(request: NextRequest) {
     } else if (plan === "enterprise") {
       priceData = {
         currency: "inr",
-        product: process.env.STRIPE_ENTERPRISE_PRODUCT_ID,
+        product_data: {
+          name: "Enterprise Plan",
+        },
         unit_amount: 99900, // ₹999.00 in paise
         recurring: {
           interval: "month",

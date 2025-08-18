@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,17 +13,99 @@ export default function PaymentSuccessPage() {
   const [isProcessing, setIsProcessing] = useState(true);
   const [error, setError] = useState("");
 
+  // Use ref to track verification status (persists between renders without triggering re-renders)
+  const verificationRef = useRef({
+    attempted: false,
+    inProgress: false,
+    sessionId: null,
+  });
+  
+  // Run only once when component mounts
   useEffect(() => {
     const sessionId = searchParams.get("session_id");
     const plan = searchParams.get("plan");
-    // Webhook will update DB; just show success
-    if (sessionId && plan) {
-      setIsProcessing(false);
-    } else {
+    
+    if (!sessionId || !plan) {
       setError("Invalid payment session");
       setIsProcessing(false);
+      return;
     }
-  }, [searchParams]);
+    
+    // Check localStorage first (persists across page refreshes)
+    try {
+      const verifiedSessions = JSON.parse(localStorage.getItem("verifiedSessions") || "[]");
+      if (verifiedSessions.includes(sessionId)) {
+        console.log(`[PAYMENT-SUCCESS] Session ${sessionId} already verified (from localStorage)`);  
+        setIsProcessing(false);
+        return;
+      }
+    } catch (e) {
+      console.error("Error checking localStorage:", e);
+      // Continue with verification if localStorage check fails
+    }
+    
+    // STRICT one-time verification check
+    if (verificationRef.current.attempted || verificationRef.current.sessionId === sessionId) {
+      console.log(`[PAYMENT-SUCCESS] Verification already attempted for session ${sessionId}, skipping`);
+      return;
+    }
+    
+    // Set verification flags immediately
+    verificationRef.current = {
+      attempted: true,
+      inProgress: true,
+      sessionId: sessionId
+    };
+    
+    console.log(`[PAYMENT-SUCCESS] Starting SINGLE verification for session ${sessionId}`);
+    
+    // Perform verification
+    const verifyPayment = async () => {
+      try {
+        const response = await fetch("/api/verify-payment", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            sessionId,
+            plan,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to verify payment");
+        }
+
+        // Store in localStorage to prevent verification on page refresh
+        try {
+          const verifiedSessions = JSON.parse(localStorage.getItem("verifiedSessions") || "[]");
+          if (!verifiedSessions.includes(sessionId)) {
+            verifiedSessions.push(sessionId);
+            localStorage.setItem("verifiedSessions", JSON.stringify(verifiedSessions));
+          }
+        } catch (e) {
+          console.error("Error updating localStorage:", e);
+        }
+        
+        console.log(`[PAYMENT-SUCCESS] Successfully verified session ${sessionId}`);
+        setIsProcessing(false);
+      } catch (error) {
+        console.error("[PAYMENT-SUCCESS] Verification error:", error);
+        setError(error instanceof Error ? error.message : "Failed to verify payment");
+        setIsProcessing(false);
+      } finally {
+        verificationRef.current.inProgress = false;
+      }
+    };
+
+    // Execute verification exactly once
+    verifyPayment();
+    
+    // No dependencies array - this effect runs EXACTLY ONCE when component mounts
+  }, []);
 
   if (isProcessing) {
     return (

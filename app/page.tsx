@@ -629,6 +629,7 @@ export default function LandingPage() {
                 popular={tier.popular}
                 plan={tier.plan}
                 user={user}
+                stripePublishableKey={process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!}
               />
             ))}
           </div>

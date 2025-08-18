@@ -26,7 +26,11 @@ const PaymentSchema = new Schema<PaymentDocument>(
     plan: { type: String, enum: ["pro", "enterprise"], required: true },
     amount: { type: Number, required: true },
     currency: { type: String, default: "INR" },
-    stripeSessionId: { type: String },
+    stripeSessionId: { 
+      type: String,
+      unique: true, // Enforce uniqueness at database level
+      sparse: true, // Allow multiple null values (for backward compatibility)
+    },
     stripeCustomerId: { type: String },
     invoiceId: { type: String },
     status: {
@@ -37,6 +41,15 @@ const PaymentSchema = new Schema<PaymentDocument>(
   },
   { timestamps: { createdAt: true, updatedAt: false } }
 );
+
+// Add index for stripeSessionId to enforce uniqueness at database level
+PaymentSchema.index({ stripeSessionId: 1 }, { unique: true, sparse: true });
+
+// Add pre-save hook to log payment creation attempts
+PaymentSchema.pre('save', function(next) {
+  console.log(`[PAYMENT-MODEL] Attempting to save payment with session ID: ${this.stripeSessionId}`);
+  next();
+});
 
 export const Payment: Model<PaymentDocument> =
   models.Payment || model<PaymentDocument>("Payment", PaymentSchema);

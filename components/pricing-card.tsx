@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Check, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 
 interface PricingCardProps {
   name: string;
@@ -21,6 +23,7 @@ interface PricingCardProps {
   popular: boolean;
   plan?: string;
   user?: any;
+  stripePublishableKey: string;
 }
 
 export default function PricingCard({
@@ -32,11 +35,30 @@ export default function PricingCard({
   popular,
   plan,
   user,
+  stripePublishableKey,
 }: PricingCardProps) {
   const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+  const router = useRouter();
 
   const handleSubscribe = async () => {
     if (!plan) return;
+    
+    // Check if user is logged in
+    if (!user) {
+      toast({
+        title: "Login Required",
+        description: "You need to be logged in to purchase a subscription.",
+        variant: "destructive",
+      });
+      
+      // Redirect to login page after a short delay
+      setTimeout(() => {
+        router.push("/login");
+      }, 2000);
+      
+      return;
+    }
 
     setLoading(true);
 
@@ -60,14 +82,27 @@ export default function PricingCard({
       const { url } = await response.json();
 
       // Open in new tab to avoid iframe restrictions
-      window.open(url, "_blank");
+      window.location.assign(url);
     } catch (error) {
       console.error("Subscription error:", error);
-      alert("Something went wrong. Please try again.");
+      toast({
+        title: "Error",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (stripePublishableKey) {
+      const script = document.createElement("script");
+      script.src = "https://js.stripe.com/v3/";
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  }, [stripePublishableKey]);
 
   const isFree = name === "Free";
   const isCurrentPlan = user?.plan === name.toLowerCase();
